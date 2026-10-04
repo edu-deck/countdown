@@ -1,4 +1,4 @@
-<!DOCTYPE html>
++<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
@@ -21,6 +21,12 @@
     }
     #eigeneZeit {
       width: 60px;
+    }
+    #eigenerText {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      font-family: inherit;
     }
     #ueberschrift {
       text-align: center;
@@ -100,10 +106,16 @@
       Überschrift:
       <label><input type="radio" name="text" value="1" checked> Option 1 (Kopfübungen)</label>
       <label><input type="radio" name="text" value="2"> Option 2 (Aufgaben, Platz in der Mitte)</label>
+      <label><input type="radio" name="text" value="3" id="textWahl"> Option 3 (eigener Text):</label>
+      <textarea id="eigenerText" rows="3" placeholder="Eigener Text, erste Zeile wird fett"></textarea>
     </div>
   </details>
 
-  <p id="ueberschrift"></p>
+  <details id="textBereich" open>
+    <summary>Text</summary>
+    <p id="ueberschrift"></p>
+  </details>
+
   <p id="hinweis" hidden>Die Zeit ist abgelaufen!</p>
   <div id="anzeige"><span id="zeitText">...</span></div>
 
@@ -124,9 +136,21 @@
     // Schreibt die gewählte Überschrift über die Box
     function ueberschriftSetzen() {
       const wahl = document.querySelector('input[name="text"]:checked').value;
-      const zeilen = TEXTE[wahl];
-      document.getElementById("ueberschrift").innerHTML =
-        "<strong>" + zeilen[0] + "</strong><br>" + zeilen.slice(1).join("<br>");
+      let zeilen;
+      if (wahl === "3") {
+        zeilen = document.getElementById("eigenerText").value.split("\n");   // Freitext
+      } else {
+        zeilen = TEXTE[wahl];
+      }
+
+      const ziel = document.getElementById("ueberschrift");
+      ziel.textContent = "";                          // alten Inhalt löschen
+      zeilen.forEach(function (zeile, i) {
+        if (i > 0) ziel.appendChild(document.createElement("br"));
+        const element = document.createElement(i === 0 ? "strong" : "span");
+        element.textContent = zeile;
+        ziel.appendChild(element);
+      });
     }
 
     // Zerlegt "9:50" in Stunde und Minute; liefert null bei ungültiger Eingabe
@@ -203,14 +227,14 @@
       const anzeige = document.getElementById("anzeige");     // die farbige Box
       const zeitText = document.getElementById("zeitText");   // die Ziffern darin
       const hinweis = document.getElementById("hinweis");
-      const ueberschrift = document.getElementById("ueberschrift");
+      const textBereich = document.getElementById("textBereich");
       const t = termine();
 
       if (!t) {                                       // eigene Zeit fehlt oder ist falsch
         zeitText.textContent = "hh:mm?";
         anzeige.classList.remove("gelb", "orange", "rot");
         hinweis.hidden = true;
-        ueberschrift.hidden = false;
+        textBereich.hidden = false;
         return;
       }
 
@@ -239,7 +263,7 @@
       if (nachlauf) anzeige.classList.remove("gelb", "orange");
       anzeige.classList.toggle("rot", nachlauf);
       hinweis.hidden = !nachlauf;                     // nach Ablauf: Hinweis ...
-      ueberschrift.hidden = nachlauf;                 // ... statt Überschrift
+      textBereich.hidden = nachlauf;                  // ... statt Überschrift
     }
 
     // Eigene Auswahl beendet einen laufenden Nachlauf ohne automatischen Sprung
@@ -256,6 +280,10 @@
     document.getElementById("eigeneZeit").addEventListener("input", function () {
       document.getElementById("eigeneWahl").checked = true;   // Tippen wählt "Andere Zeit"
       auswahlGeaendert();
+    });
+    document.getElementById("eigenerText").addEventListener("input", function () {
+      document.getElementById("textWahl").checked = true;     // Tippen wählt Option 3
+      ueberschriftSetzen();
     });
     aktualisieren();
     setInterval(aktualisieren, 1000);                 // jede Sekunde neu
