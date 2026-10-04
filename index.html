@@ -4,8 +4,16 @@
   <meta charset="utf-8">
   <title>Countdown</title>
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
     body {
       font-family: Calibri, Arial, sans-serif;
+      box-sizing: border-box;
+      padding: 10px;
+      display: flex;               /* Elemente untereinander, Box füllt den Rest */
+      flex-direction: column;
     }
     summary {
       cursor: pointer;
@@ -16,17 +24,28 @@
     }
     #hinweis {
       color: #d50000;
-      font-size: 28px;
+      font-size: clamp(18px, 5vw, 48px);
       font-weight: bold;
-      margin-bottom: 0;
+      text-align: center;
+      margin: 5px 0;
     }
     #anzeige {
-      display: inline-block;
+      flex: 1;                     /* nimmt den restlichen Platz ein */
+      min-height: 0;
+      container-type: size;        /* Schriftgröße richtet sich nach der Box */
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background-color: #2e7d32;   /* Grün */
       color: white;
-      padding: 20px 40px;
       border-radius: 10px;
-      font-size: 60px;
+    }
+    #zeitText {
+      font-size: 18vw;                     /* Ersatz für ältere Browser */
+      font-size: min(22cqw, 80cqh);        /* passt sich Breite und Höhe der Box an */
+      font-weight: bold;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;  /* gleich breite Ziffern, kein Wackeln */
     }
     #anzeige.gelb {
       background-color: #fdd835;   /* Gelb */
@@ -74,7 +93,7 @@
   </details>
 
   <p id="hinweis" hidden>Die Zeit ist abgelaufen!</p>
-  <h1 id="anzeige">...</h1>
+  <div id="anzeige"><span id="zeitText">...</span></div>
 
   <script>
     const NACHLAUF = 5 * 60;      // Sekunden, die nach Ablauf hochgezählt werden
@@ -151,12 +170,13 @@
     }
 
     function aktualisieren() {
-      const anzeige = document.getElementById("anzeige");
+      const anzeige = document.getElementById("anzeige");     // die farbige Box
+      const zeitText = document.getElementById("zeitText");   // die Ziffern darin
       const hinweis = document.getElementById("hinweis");
       const t = termine();
 
       if (!t) {                                       // eigene Zeit fehlt oder ist falsch
-        anzeige.textContent = "hh:mm?";
+        zeitText.textContent = "hh:mm?";
         anzeige.classList.remove("gelb", "orange", "rot");
         hinweis.hidden = true;
         return;
@@ -176,10 +196,10 @@
 
       if (nachlauf) {
         abgelaufen = true;
-        anzeige.textContent = format(vergangen);      // zählt hoch
+        zeitText.textContent = format(vergangen);     // zählt hoch
       } else {
         const rest = Math.ceil((t.naechster - jetzt) / 1000);
-        anzeige.textContent = format(rest);           // zählt herunter
+        zeitText.textContent = format(rest);          // zählt herunter
         anzeige.classList.toggle("orange", rest <= 30);
         anzeige.classList.toggle("gelb", rest > 30 && rest <= 120);
       }
