@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Countdown</title>
+  <style>
+    body {
+      font-family: Calibri, Arial, sans-serif;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #eigeneZeit {
+      width: 60px;
+    }
+    #hinweis {
+      color: #d50000;
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 0;
+    }
+    #anzeige {
+      display: inline-block;
+      background-color: #2e7d32;   /* Grün */
+      color: white;
+      padding: 20px 40px;
+      border-radius: 10px;
+      font-size: 60px;
+    }
+    #anzeige.gelb {
+      background-color: #fdd835;   /* Gelb */
+      color: black;
+    }
+    #anzeige.orange {
+      background-color: #f57c00;   /* Orange */
+      color: black;
+    }
+    #anzeige.rot {
+      background-color: #d50000;   /* Feuerrot */
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <details>
+    <summary>Einstellungen</summary>
+
+    <div id="tage">
+      <label><input type="radio" name="tag" value="1"> Montag</label>
+      <label><input type="radio" name="tag" value="2"> Dienstag</label>
+      <label><input type="radio" name="tag" value="3"> Mittwoch</label>
+      <label><input type="radio" name="tag" value="4"> Donnerstag</label>
+      <label><input type="radio" name="tag" value="5"> Freitag</label>
+      <label><input type="radio" name="tag" value="6"> Samstag</label>
+      <label><input type="radio" name="tag" value="0"> Sonntag</label>
+    </div>
+
+    <div id="stunden">
+      <label><input type="radio" name="stunde" value="8:00"> 1. Stunde (8:00)</label>
+      <label><input type="radio" name="stunde" value="8:50"> 2. Stunde (8:50)</label>
+      <label><input type="radio" name="stunde" value="9:50"> 3. Stunde (9:50)</label>
+      <label><input type="radio" name="stunde" value="10:40"> 4. Stunde (10:40)</label>
+      <label><input type="radio" name="stunde" value="11:50"> 5. Stunde (11:50)</label>
+      <label><input type="radio" name="stunde" value="12:40"> 6. Stunde (12:40)</label>
+      <label><input type="radio" name="stunde" value="13:40"> 7. Stunde (13:40)</label>
+      <label><input type="radio" name="stunde" value="14:35"> 8. Stunde (14:35)</label>
+    </div>
+
+    <div>
+      <label><input type="radio" name="stunde" value="eigene" id="eigeneWahl"> Andere Zeit:</label>
+      <input type="text" id="eigeneZeit" placeholder="hh:mm" maxlength="5">
+    </div>
+  </details>
+
+  <p id="hinweis" hidden>Die Zeit ist abgelaufen!</p>
+  <h1 id="anzeige">...</h1>
+
+  <script>
+    const NACHLAUF = 5 * 60;      // Sekunden, die nach Ablauf hochgezählt werden
+    let abgelaufen = false;       // merkt sich, ob gerade der Nachlauf läuft
+
+    // Zerlegt "9:50" in Stunde und Minute; liefert null bei ungültiger Eingabe
+    function zeit(wert) {
+      const treffer = wert.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+      if (!treffer) return null;
+      return { h: Number(treffer[1]), m: Number(treffer[2]) };
+    }
+
+    // Wählt die nächste Stunde heute, sonst die 1. Stunde am nächsten Schultag
+    function vorauswahl() {
+      const jetzt = new Date();
+      const minutenJetzt = jetzt.getHours() * 60 + jetzt.getMinutes();
+      const stunden = document.querySelectorAll('#stunden input[name="stunde"]');
+      let tag = jetzt.getDay();                       // 0 = So, 1 = Mo, ... 6 = Sa
+      let stunde = stunden[0];
+      let gefunden = false;
+
+      if (tag >= 1 && tag <= 5) {
+        for (const s of stunden) {
+          const z = zeit(s.value);
+          if (z.h * 60 + z.m > minutenJetzt) {
+            stunde = s;
+            gefunden = true;
+            break;
+          }
+        }
+      }
+      if (!gefunden) tag = tag + 1;                   // heute nichts mehr -> morgen
+      if (tag === 0 || tag > 5) tag = 1;              // Wochenende -> Montag
+
+      document.querySelector(`input[name="tag"][value="${tag}"]`).checked = true;
+      stunde.checked = true;
+    }
+
+    function gewaehlterTag() {
+      return Number(document.querySelector('input[name="tag"]:checked').value);
+    }
+
+    // Liefert die Zeit der gewählten Stunde oder die eingetippte Zeit
+    function gewaehlteZeit() {
+      const auswahl = document.querySelector('input[name="stunde"]:checked').value;
+      if (auswahl === "eigene") {
+        return zeit(document.getElementById("eigeneZeit").value);
+      }
+      return zeit(auswahl);
+    }
+
+    // Liefert den nächsten und den letzten (eine Woche früheren) Termin
+    function termine() {
+      const z = gewaehlteZeit();
+      if (!z) return null;                            // ungültige Eingabe
+      const jetzt = new Date();
+      const naechster = new Date(jetzt);
+      naechster.setHours(z.h, z.m, 0, 0);
+      let tage = (gewaehlterTag() - jetzt.getDay() + 7) % 7;
+      if (tage === 0 && jetzt >= naechster) tage = 7; // heute schon vorbei -> nächste Woche
+      naechster.setDate(jetzt.getDate() + tage);
+
+      const letzter = new Date(naechster);
+      letzter.setDate(naechster.getDate() - 7);
+      return { naechster, letzter };
+    }
+
+    // Formatiert Sekunden als hh:mm:ss
+    function format(sekunden) {
+      const h = String(Math.floor(sekunden / 3600)).padStart(2, "0");
+      const m = String(Math.floor(sekunden % 3600 / 60)).padStart(2, "0");
+      const s = String(sekunden % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    function aktualisieren() {
+      const anzeige = document.getElementById("anzeige");
+      const hinweis = document.getElementById("hinweis");
+      const t = termine();
+
+      if (!t) {                                       // eigene Zeit fehlt oder ist falsch
+        anzeige.textContent = "hh:mm?";
+        anzeige.classList.remove("gelb", "orange", "rot");
+        hinweis.hidden = true;
+        return;
+      }
+
+      const jetzt = new Date();
+      const vergangen = Math.floor((jetzt - t.letzter) / 1000);   // Sekunden seit Ablauf
+      const nachlauf = vergangen <= NACHLAUF;
+
+      // Nachlauf gerade zu Ende -> zum nächstmöglichen Termin springen
+      if (!nachlauf && abgelaufen) {
+        abgelaufen = false;
+        vorauswahl();
+        aktualisieren();
+        return;
+      }
+
+      if (nachlauf) {
+        abgelaufen = true;
+        anzeige.textContent = format(vergangen);      // zählt hoch
+      } else {
+        const rest = Math.ceil((t.naechster - jetzt) / 1000);
+        anzeige.textContent = format(rest);           // zählt herunter
+        anzeige.classList.toggle("orange", rest <= 30);
+        anzeige.classList.toggle("gelb", rest > 30 && rest <= 120);
+      }
+
+      if (nachlauf) anzeige.classList.remove("gelb", "orange");
+      anzeige.classList.toggle("rot", nachlauf);
+      hinweis.hidden = !nachlauf;
+    }
+
+    // Eigene Auswahl beendet einen laufenden Nachlauf ohne automatischen Sprung
+    function auswahlGeaendert() {
+      abgelaufen = false;
+      aktualisieren();
+    }
+
+    // Vorauswahl setzen, auf Klicks und Eingaben reagieren, starten
+    vorauswahl();
+    document.addEventListener("change", auswahlGeaendert);
+    document.getElementById("eigeneZeit").addEventListener("input", function () {
+      document.getElementById("eigeneWahl").checked = true;   // Tippen wählt "Andere Zeit"
+      auswahlGeaendert();
+    });
+    aktualisieren();
+    setInterval(aktualisieren, 1000);                 // jede Sekunde neu
+  </script>
+</body>
+</html>
